@@ -32,6 +32,11 @@ namespace types {
   /// preprocessed.
   ID getPreprocessedType(ID Id);
 
+  /// getPrecompiledType - Get the ID of the type for this input when
+  /// it has been precompiled, or INVALID if this input is not
+  /// precompiled.
+  ID getPrecompiledType(ID Id);
+
   /// getTypeTempSuffix - Return the suffix to use when creating a
   /// temp file of this type, or null if unspecified.
   const char *getTypeTempSuffix(ID Id, bool CLMode = false);
@@ -63,6 +68,12 @@ namespace types {
   /// isCXX - Is this a "C++" input (C++ and Obj-C++ sources and headers).
   bool isCXX(ID Id);
 
+  /// Is this LLVM IR.
+  bool isLLVMIR(ID Id);
+
+  /// isCuda - Is this a CUDA input.
+  bool isCuda(ID Id);
+
   /// isObjC - Is this an "ObjC" input (Obj-C and Obj-C++ sources and headers).
   bool isObjC(ID Id);
 
@@ -83,6 +94,10 @@ namespace types {
   /// lookupCXXTypeForCType - Lookup CXX input type that corresponds to given
   /// C type (used for clang++ emulation of g++ behaviour)
   ID lookupCXXTypeForCType(ID Id);
+
+  /// Lookup header file input type that corresponds to given
+  /// source file type (used for clang-cl emulation of \Yc).
+  ID lookupHeaderTypeForSourceType(ID Id);
 
 } // end namespace types
 } // end namespace driver

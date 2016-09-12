@@ -19,7 +19,6 @@
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/SourceLocation.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/PointerUnion.h"
 
 namespace clang {
@@ -117,13 +116,15 @@ private:
   void emitCaret(SourceLocation Loc, DiagnosticsEngine::Level Level,
                  ArrayRef<CharSourceRange> Ranges, ArrayRef<FixItHint> Hints,
                  const SourceManager &SM);
+  void emitSingleMacroExpansion(SourceLocation Loc,
+                                DiagnosticsEngine::Level Level,
+                                ArrayRef<CharSourceRange> Ranges,
+                                const SourceManager &SM);
   void emitMacroExpansions(SourceLocation Loc,
                            DiagnosticsEngine::Level Level,
                            ArrayRef<CharSourceRange> Ranges,
                            ArrayRef<FixItHint> Hints,
-                           const SourceManager &SM,
-                           unsigned &MacroDepth,
-                           unsigned OnMacroInst = 0);
+                           const SourceManager &SM);
 public:
   /// \brief Emit a diagnostic.
   ///

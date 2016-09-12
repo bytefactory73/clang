@@ -1,8 +1,8 @@
 // RUN: rm -rf %t
-// RUN: %clang_cc1 -triple x86_64-linux-gnu -std=c++11 -x objective-c++ -fmodules -fmodules-cache-path=%t -I %S/Inputs -verify %s -Wno-objc-root-class
-// RUN: %clang_cc1 -triple x86_64-linux-gnu -std=c++11 -x objective-c++ -fmodules -fmodules-cache-path=%t -I %S/Inputs -emit-llvm %s -o - -Wno-objc-root-class | FileCheck %s
+// RUN: %clang_cc1 -triple x86_64-linux-gnu -std=c++11 -x objective-c++ -fmodules -fimplicit-module-maps -fmodules-cache-path=%t -I %S/Inputs -verify %s -Wno-objc-root-class
+// RUN: %clang_cc1 -triple x86_64-linux-gnu -std=c++11 -x objective-c++ -fmodules -fimplicit-module-maps -fmodules-cache-path=%t -I %S/Inputs -emit-llvm %s -o - -Wno-objc-root-class | FileCheck %s
 // expected-no-diagnostics
-
+// REQUIRES: x86-registered-target
 @import templates_left;
 
 void testInlineRedeclEarly() {
@@ -12,10 +12,10 @@ void testInlineRedeclEarly() {
 
 @import templates_right;
 
-// CHECK-DAG: @list_left = global %class.List { %"struct.List<int>::node"* null, i32 8 }, align 8
-// CHECK-DAG: @list_right = global %class.List { %"struct.List<int>::node"* null, i32 12 }, align 8
-// CHECK-DAG: @_ZZ15testMixedStructvE1l = {{.*}} constant %class.List { %{{.*}}* null, i32 1 }, align 8
-// CHECK-DAG: @_ZZ15testMixedStructvE1r = {{.*}} constant %class.List { %{{.*}}* null, i32 2 }, align 8
+// CHECK-DAG: @list_left = global %[[LIST:.*]] { %[[LISTNODE:.*]]* null, i32 8 }, align 8
+// CHECK-DAG: @list_right = global %[[LIST]] { %[[LISTNODE]]* null, i32 12 }, align 8
+// CHECK-DAG: @_ZZ15testMixedStructvE1l = {{.*}} constant %[[LIST]] { %{{.*}}* null, i32 1 }, align 8
+// CHECK-DAG: @_ZZ15testMixedStructvE1r = {{.*}} constant %[[LIST]] { %{{.*}}* null, i32 2 }, align 8
 // CHECK-DAG: @_ZN29WithUndefinedStaticDataMemberIA_iE9undefinedE = external global
 
 void testTemplateClasses() {
@@ -27,6 +27,8 @@ void testTemplateClasses() {
 
   N::Set<char> set_char;
   set_char.insert('A');
+
+  static_assert(sizeof(List<long>) == sizeof(List<short>), "");
 
   List<double> list_double;
   list_double.push_back(0.0);

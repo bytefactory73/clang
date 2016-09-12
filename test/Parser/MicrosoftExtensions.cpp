@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -triple i386-mingw32 -std=c++14 -fsyntax-only -Wno-unused-getter-return-value -Wno-unused-value -Wmicrosoft -verify -fms-extensions -fms-compatibility -fdelayed-template-parsing
+// RUN: %clang_cc1 %s -triple i386-pc-win32 -std=c++14 -fsyntax-only -Wno-unused-getter-return-value -Wno-unused-value -Wmicrosoft -verify -fms-extensions -fms-compatibility -fdelayed-template-parsing
 
 /* Microsoft attribute tests */
 [repeatable][source_annotation_attribute( Parameter|ReturnValue )]
@@ -49,6 +49,7 @@ struct __declspec(uuid(3)) uuid_attr_bad2 { };// expected-error {{'uuid' attribu
 struct __declspec(uuid("0000000-0000-0000-1234-0000500000047")) uuid_attr_bad3 { };// expected-error {{uuid attribute contains a malformed GUID}}
 struct __declspec(uuid("0000000-0000-0000-Z234-000000000047")) uuid_attr_bad4 { };// expected-error {{uuid attribute contains a malformed GUID}}
 struct __declspec(uuid("000000000000-0000-1234-000000000047")) uuid_attr_bad5 { };// expected-error {{uuid attribute contains a malformed GUID}}
+[uuid("000000000000-0000-1234-000000000047")] struct uuid_attr_bad6 { };// expected-error {{uuid attribute contains a malformed GUID}}
 
 __declspec(uuid("000000A0-0000-0000-C000-000000000046")) int i; // expected-warning {{'uuid' attribute only applies to classes}}
 
@@ -58,6 +59,8 @@ struct struct_without_uuid { };
 
 struct __declspec(uuid("000000A0-0000-0000-C000-000000000049"))
 struct_with_uuid2;
+
+[uuid("000000A0-0000-0000-C000-000000000049")] struct struct_with_uuid3;
 
 struct
 struct_with_uuid2 {} ;
@@ -69,6 +72,7 @@ int uuid_sema_test()
 
    __uuidof(struct_with_uuid);
    __uuidof(struct_with_uuid2);
+   __uuidof(struct_with_uuid3);
    __uuidof(struct_without_uuid); // expected-error {{cannot call operator __uuidof on a type with no GUID}}
    __uuidof(struct_with_uuid*);
    __uuidof(struct_without_uuid*); // expected-error {{cannot call operator __uuidof on a type with no GUID}}
@@ -399,4 +403,11 @@ __declspec(align(16)) struct align_before_key3 {} *align_before_key3_var;
 static_assert(__alignof(struct align_before_key1) == 16, "");
 static_assert(__alignof(struct align_before_key2) == 16, "");
 static_assert(__alignof(struct align_before_key3) == 16, "");
+}
+
+namespace PR24027 {
+struct S {
+  template <typename T>
+  S(T);
+} f([] {});
 }

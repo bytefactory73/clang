@@ -16,6 +16,7 @@
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/OperatorKinds.h"
+#include "clang/Basic/Specifiers.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/SmallString.h"
@@ -41,6 +42,7 @@ IdentifierInfo::IdentifierInfo() {
   NeedsHandleIdentifier = false;
   IsFromAST = false;
   ChangedAfterLoad = false;
+  FEChangedAfterLoad = false;
   RevertedTokenID = false;
   OutOfDate = false;
   IsModulesImport = false;
@@ -69,8 +71,6 @@ namespace {
 IdentifierIterator *IdentifierInfoLookup::getIdentifiers() {
   return new EmptyLookupIterator();
 }
-
-ExternalIdentifierLookup::~ExternalIdentifierLookup() {}
 
 IdentifierTable::IdentifierTable(const LangOptions &LangOpts,
                                  IdentifierInfoLookup* externalLookup)
@@ -109,7 +109,12 @@ namespace {
     KEYNOOPENCL = 0x02000,
     WCHARSUPPORT = 0x04000,
     HALFSUPPORT = 0x08000,
-    KEYALL = (0xffff & ~KEYNOMS18 &
+    KEYCONCEPTS = 0x10000,
+    KEYOBJC2    = 0x20000,
+    KEYZVECTOR  = 0x40000,
+    KEYCOROUTINES = 0x80000,
+    KEYMODULES = 0x100000,
+    KEYALL = (0x1fffff & ~KEYNOMS18 &
               ~KEYNOOPENCL) // KEYNOMS18 and KEYNOOPENCL are used to exclude.
   };
 
@@ -143,6 +148,10 @@ static KeywordStatus getKeywordStatus(const LangOptions &LangOpts,
   // We treat bridge casts as objective-C keywords so we can warn on them
   // in non-arc mode.
   if (LangOpts.ObjC2 && (Flags & KEYARC)) return KS_Enabled;
+  if (LangOpts.ObjC2 && (Flags & KEYOBJC2)) return KS_Enabled;
+  if (LangOpts.ConceptsTS && (Flags & KEYCONCEPTS)) return KS_Enabled;
+  if (LangOpts.Coroutines && (Flags & KEYCOROUTINES)) return KS_Enabled;
+  if (LangOpts.ModulesTS && (Flags & KEYMODULES)) return KS_Enabled;
   if (LangOpts.CPlusPlus && (Flags & KEYCXX11)) return KS_Future;
   return KS_Disabled;
 }
@@ -215,6 +224,9 @@ void IdentifierTable::AddKeywords(const LangOptions &LangOpts) {
   if (LangOpts.ParseUnknownAnytype)
     AddKeyword("__unknown_anytype", tok::kw___unknown_anytype, KEYALL,
                LangOpts, *this);
+
+  if (LangOpts.DeclSpecKeyword)
+    AddKeyword("__declspec", tok::kw___declspec, KEYALL, LangOpts, *this);
 }
 
 /// \brief Checks if the specified token kind represents a keyword in the
@@ -636,4 +648,19 @@ const char *clang::getOperatorSpelling(OverloadedOperatorKind Operator) {
   }
 
   llvm_unreachable("Invalid OverloadedOperatorKind!");
+}
+
+StringRef clang::getNullabilitySpelling(NullabilityKind kind,
+                                        bool isContextSensitive) {
+  switch (kind) {
+  case NullabilityKind::NonNull:
+    return isContextSensitive ? "nonnull" : "_Nonnull";
+
+  case NullabilityKind::Nullable:
+    return isContextSensitive ? "nullable" : "_Nullable";
+
+  case NullabilityKind::Unspecified:
+    return isContextSensitive ? "null_unspecified" : "_Null_unspecified";
+  }
+  llvm_unreachable("Unknown nullability kind.");
 }

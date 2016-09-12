@@ -52,7 +52,8 @@ enum ActionType {
   GenArmNeon,
   GenArmNeonSema,
   GenArmNeonTest,
-  GenAttrDocs
+  GenAttrDocs,
+  GenDiagDocs
 };
 
 namespace {
@@ -132,6 +133,8 @@ cl::opt<ActionType> Action(
         clEnumValN(GenArmNeonTest, "gen-arm-neon-test",
                    "Generate ARM NEON tests for clang"),
         clEnumValN(GenAttrDocs, "gen-attr-docs",
+                   "Generate attribute documentation"),
+        clEnumValN(GenDiagDocs, "gen-diag-docs",
                    "Generate attribute documentation"),
         clEnumValEnd));
 
@@ -233,6 +236,9 @@ bool ClangTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
   case GenAttrDocs:
     EmitClangAttrDocs(Records, OS);
     break;
+  case GenDiagDocs:
+    EmitClangDiagDocs(Records, OS);
+    break;
   }
 
   return false;
@@ -240,9 +246,11 @@ bool ClangTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
 }
 
 int main(int argc, char **argv) {
-  sys::PrintStackTraceOnErrorSignal();
+  sys::PrintStackTraceOnErrorSignal(argv[0]);
   PrettyStackTraceProgram X(argc, argv);
   cl::ParseCommandLineOptions(argc, argv);
+
+  llvm_shutdown_obj Y;
 
   return TableGenMain(argv[0], &ClangTableGenMain);
 }

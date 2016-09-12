@@ -1,7 +1,7 @@
-// RUN: %clang_cc1 -verify -fopenmp=libiomp5 -x c++ -triple x86_64-unknown-unknown -emit-llvm %s -fexceptions -fcxx-exceptions -o - | FileCheck %s
-// RUN: %clang_cc1 -fopenmp=libiomp5 -x c++ -std=c++11 -triple x86_64-unknown-unknown -fexceptions -fcxx-exceptions -emit-pch -o %t %s
-// RUN: %clang_cc1 -fopenmp=libiomp5 -x c++ -triple x86_64-unknown-unknown -fexceptions -fcxx-exceptions -std=c++11 -include-pch %t -verify %s -emit-llvm -o - | FileCheck %s
-//
+// RUN: %clang_cc1 -verify -fopenmp -x c++ -triple x86_64-unknown-unknown -emit-llvm %s -fexceptions -fcxx-exceptions -o - | FileCheck %s
+// RUN: %clang_cc1 -fopenmp -x c++ -std=c++11 -triple x86_64-unknown-unknown -fexceptions -fcxx-exceptions -emit-pch -o %t %s
+// RUN: %clang_cc1 -fopenmp -x c++ -triple x86_64-unknown-unknown -fexceptions -fcxx-exceptions -std=c++11 -include-pch %t -verify %s -emit-llvm -o - | FileCheck %s
+// REQUIRES: x86-registered-target
 // expected-no-diagnostics
 #ifndef HEADER
 #define HEADER
@@ -12,17 +12,18 @@
 void static_not_chunked(float *a, float *b, float *c, float *d) {
 // CHECK: [[GTID:%.+]] = call i32 @__kmpc_global_thread_num([[IDENT_T_TY]]* [[DEFAULT_LOC:[@%].+]])
   #pragma omp for schedule(static) ordered
-// CHECK: call void @__kmpc_for_static_init_4([[IDENT_T_TY]]* [[DEFAULT_LOC]], i32 [[GTID]], i32 34, i32* [[IS_LAST:%[^,]+]], i32* [[OMP_LB:%[^,]+]], i32* [[OMP_UB:%[^,]+]], i32* [[OMP_ST:%[^,]+]], i32 1, i32 1)
-// UB = min(UB, GlobalUB)
-// CHECK-NEXT: [[UB:%.+]] = load i32, i32* [[OMP_UB]]
-// CHECK-NEXT: [[UBCMP:%.+]] = icmp sgt i32 [[UB]], 4571423
-// CHECK-NEXT: br i1 [[UBCMP]], label [[UB_TRUE:%[^,]+]], label [[UB_FALSE:%[^,]+]]
-// CHECK: [[UBRESULT:%.+]] = phi i32 [ 4571423, [[UB_TRUE]] ], [ [[UBVAL:%[^,]+]], [[UB_FALSE]] ]
-// CHECK-NEXT: store i32 [[UBRESULT]], i32* [[OMP_UB]]
-// CHECK-NEXT: [[LB:%.+]] = load i32, i32* [[OMP_LB]]
-// CHECK-NEXT: store i32 [[LB]], i32* [[OMP_IV:[^,]+]]
+// CHECK: call void @__kmpc_dispatch_init_4([[IDENT_T_TY]]* [[DEFAULT_LOC]], i32 [[GTID]], i32 66, i32 0, i32 4571423, i32 1, i32 1)
+//
+// CHECK: [[HASWORK:%.+]] = call i32 @__kmpc_dispatch_next_4([[IDENT_T_TY]]* [[DEFAULT_LOC]], i32 [[GTID]], i32* [[OMP_ISLAST:%[^,]+]], i32* [[OMP_LB:%[^,]+]], i32* [[OMP_UB:%[^,]+]], i32* [[OMP_ST:%[^,]+]])
+// CHECK-NEXT: [[O_CMP:%.+]] = icmp ne i32 [[HASWORK]], 0
+// CHECK-NEXT: br i1 [[O_CMP]], label %[[O_LOOP1_BODY:[^,]+]], label %[[O_LOOP1_END:[^,]+]]
+
 // Loop header
+// CHECK: [[O_LOOP1_BODY]]
+// CHECK: [[LB:%.+]] = load i32, i32* [[OMP_LB]]
+// CHECK-NEXT: store i32 [[LB]], i32* [[OMP_IV:[^,]+]]
 // CHECK: [[IV:%.+]] = load i32, i32* [[OMP_IV]]
+
 // CHECK-NEXT: [[UB:%.+]] = load i32, i32* [[OMP_UB]]
 // CHECK-NEXT: [[CMP:%.+]] = icmp sle i32 [[IV]], [[UB]]
 // CHECK-NEXT: br i1 [[CMP]], label %[[LOOP1_BODY:[^,]+]], label %[[LOOP1_END:[^,]+]]
@@ -47,11 +48,12 @@ void static_not_chunked(float *a, float *b, float *c, float *d) {
 // CHECK: [[IV1_2:%.+]] = load i32, i32* [[OMP_IV]]{{.*}}
 // CHECK-NEXT: [[ADD1_2:%.+]] = add nsw i32 [[IV1_2]], 1
 // CHECK-NEXT: store i32 [[ADD1_2]], i32* [[OMP_IV]]
+// CHECK-NEXT: call void @__kmpc_dispatch_fini_4([[IDENT_T_TY]]* [[DEFAULT_LOC]], i32 [[GTID]])
 // CHECK-NEXT: br label %{{.+}}
   }
 // CHECK: [[LOOP1_END]]
-// CHECK: call void @__kmpc_for_static_fini([[IDENT_T_TY]]* [[DEFAULT_LOC]], i32 [[GTID]])
-// CHECK: call {{.+}} @__kmpc_cancel_barrier([[IDENT_T_TY]]* [[IMPLICIT_BARRIER_LOC]], i32 [[GTID]])
+// CHECK: [[O_LOOP1_END]]
+// CHECK: call {{.+}} @__kmpc_barrier([[IDENT_T_TY]]* [[IMPLICIT_BARRIER_LOC]], i32 [[GTID]])
 // CHECK: ret void
 }
 
@@ -59,7 +61,7 @@ void static_not_chunked(float *a, float *b, float *c, float *d) {
 void dynamic1(float *a, float *b, float *c, float *d) {
 // CHECK: [[GTID:%.+]] = call i32 @__kmpc_global_thread_num([[IDENT_T_TY]]* [[DEFAULT_LOC:[@%].+]])
   #pragma omp for schedule(dynamic) ordered
-// CHECK: call void @__kmpc_dispatch_init_8u([[IDENT_T_TY]]* [[DEFAULT_LOC]], i32 [[GTID]], i32 35, i64 0, i64 16908287, i64 1, i64 1)
+// CHECK: call void @__kmpc_dispatch_init_8u([[IDENT_T_TY]]* [[DEFAULT_LOC]], i32 [[GTID]], i32 67, i64 0, i64 16908287, i64 1, i64 1)
 //
 // CHECK: [[HASWORK:%.+]] = call i32 @__kmpc_dispatch_next_8u([[IDENT_T_TY]]* [[DEFAULT_LOC]], i32 [[GTID]], i32* [[OMP_ISLAST:%[^,]+]], i64* [[OMP_LB:%[^,]+]], i64* [[OMP_UB:%[^,]+]], i64* [[OMP_ST:%[^,]+]])
 // CHECK-NEXT: [[O_CMP:%.+]] = icmp ne i32 [[HASWORK]], 0
@@ -90,7 +92,7 @@ void dynamic1(float *a, float *b, float *c, float *d) {
 // CHECK-NOT: !llvm.mem.parallel_loop_access
 // CHECK-NEXT: call void @__kmpc_end_ordered([[IDENT_T_TY]]* [[DEFAULT_LOC]], i32 [[GTID]])
 // ... end of ordered region ...
-    #pragma omp ordered
+    #pragma omp ordered threads
     a[i] = b[i] * c[i] * d[i];
 // CHECK: [[IV1_2:%.+]] = load i64, i64* [[OMP_IV]]{{.*}}
 // CHECK-NEXT: [[ADD1_2:%.+]] = add i64 [[IV1_2]], 1
@@ -102,7 +104,7 @@ void dynamic1(float *a, float *b, float *c, float *d) {
   }
 // CHECK: [[LOOP1_END]]
 // CHECK: [[O_LOOP1_END]]
-// CHECK: call {{.+}} @__kmpc_cancel_barrier([[IDENT_T_TY]]* [[IMPLICIT_BARRIER_LOC]], i32 [[GTID]])
+// CHECK: call {{.+}} @__kmpc_barrier([[IDENT_T_TY]]* [[IMPLICIT_BARRIER_LOC]], i32 [[GTID]])
 // CHECK: ret void
 }
 
@@ -112,7 +114,7 @@ void test_auto(float *a, float *b, float *c, float *d) {
   unsigned int y = 0;
 // CHECK: [[GTID:%.+]] = call i32 @__kmpc_global_thread_num([[IDENT_T_TY]]* [[DEFAULT_LOC:[@%].+]])
   #pragma omp for schedule(auto) collapse(2) ordered
-// CHECK: call void @__kmpc_dispatch_init_8([[IDENT_T_TY]]* [[DEFAULT_LOC]], i32 [[GTID]], i32 38, i64 0, i64 [[LAST_ITER:%[^,]+]], i64 1, i64 1)
+// CHECK: call void @__kmpc_dispatch_init_8([[IDENT_T_TY]]* [[DEFAULT_LOC]], i32 [[GTID]], i32 70, i64 0, i64 [[LAST_ITER:%[^,]+]], i64 1, i64 1)
 //
 // CHECK: [[HASWORK:%.+]] = call i32 @__kmpc_dispatch_next_8([[IDENT_T_TY]]* [[DEFAULT_LOC]], i32 [[GTID]], i32* [[OMP_ISLAST:%[^,]+]], i64* [[OMP_LB:%[^,]+]], i64* [[OMP_UB:%[^,]+]], i64* [[OMP_ST:%[^,]+]])
 // CHECK-NEXT: [[O_CMP:%.+]] = icmp ne i32 [[HASWORK]], 0
@@ -156,7 +158,7 @@ void test_auto(float *a, float *b, float *c, float *d) {
   }
 // CHECK: [[LOOP1_END]]
 // CHECK: [[O_LOOP1_END]]
-// CHECK: call {{.+}} @__kmpc_cancel_barrier([[IDENT_T_TY]]* [[IMPLICIT_BARRIER_LOC]], i32 [[GTID]])
+// CHECK: call {{.+}} @__kmpc_barrier([[IDENT_T_TY]]* [[IMPLICIT_BARRIER_LOC]], i32 [[GTID]])
 // CHECK: ret void
 }
 
@@ -165,7 +167,7 @@ void runtime(float *a, float *b, float *c, float *d) {
   int x = 0;
 // CHECK: [[GTID:%.+]] = call i32 @__kmpc_global_thread_num([[IDENT_T_TY]]* [[DEFAULT_LOC:[@%].+]])
   #pragma omp for collapse(2) schedule(runtime) ordered
-// CHECK: call void @__kmpc_dispatch_init_4([[IDENT_T_TY]]* [[DEFAULT_LOC]], i32 [[GTID]], i32 37, i32 0, i32 199, i32 1, i32 1)
+// CHECK: call void @__kmpc_dispatch_init_4([[IDENT_T_TY]]* [[DEFAULT_LOC]], i32 [[GTID]], i32 69, i32 0, i32 199, i32 1, i32 1)
 //
 // CHECK: [[HASWORK:%.+]] = call i32 @__kmpc_dispatch_next_4([[IDENT_T_TY]]* [[DEFAULT_LOC]], i32 [[GTID]], i32* [[OMP_ISLAST:%[^,]+]], i32* [[OMP_LB:%[^,]+]], i32* [[OMP_UB:%[^,]+]], i32* [[OMP_ST:%[^,]+]])
 // CHECK-NEXT: [[O_CMP:%.+]] = icmp ne i32 [[HASWORK]], 0
@@ -195,7 +197,7 @@ void runtime(float *a, float *b, float *c, float *d) {
 // CHECK-NOT: !llvm.mem.parallel_loop_access
 // CHECK-NEXT: call void @__kmpc_end_ordered([[IDENT_T_TY]]* [[DEFAULT_LOC]], i32 [[GTID]])
 // ... end of ordered region ...
-    #pragma omp ordered
+    #pragma omp ordered threads
     a[i] = b[i] * c[i] * d[i];
 // CHECK: [[IV1_2:%.+]] = load i32, i32* [[OMP_IV]]{{.*}}
 // CHECK-NEXT: [[ADD1_2:%.+]] = add nsw i32 [[IV1_2]], 1
@@ -207,9 +209,34 @@ void runtime(float *a, float *b, float *c, float *d) {
   }
 // CHECK: [[LOOP1_END]]
 // CHECK: [[O_LOOP1_END]]
-// CHECK: call {{.+}} @__kmpc_cancel_barrier([[IDENT_T_TY]]* [[IMPLICIT_BARRIER_LOC]], i32 [[GTID]])
+// CHECK: call {{.+}} @__kmpc_barrier([[IDENT_T_TY]]* [[IMPLICIT_BARRIER_LOC]], i32 [[GTID]])
 // CHECK: ret void
 }
+
+float f[10];
+// CHECK-LABEL: foo_simd
+void foo_simd(int low, int up) {
+  // CHECK: store float 0.000000e+00, float* %{{.+}}, align {{[0-9]+}}, !llvm.mem.parallel_loop_access !
+  // CHECK-NEXT: call void [[CAP_FUNC:@.+]](i32* %{{.+}}) #{{[0-9]+}}, !llvm.mem.parallel_loop_access !
+#pragma omp simd
+  for (int i = low; i < up; ++i) {
+    f[i] = 0.0;
+#pragma omp ordered simd
+    f[i] = 1.0;
+  }
+  // CHECK: store float 0.000000e+00, float* %{{.+}}, align {{[0-9]+}}
+  // CHECK-NEXT: call void [[CAP_FUNC:@.+]](i32* %{{.+}}) #{{[0-9]+}}
+#pragma omp for simd ordered
+  for (int i = low; i < up; ++i) {
+    f[i] = 0.0;
+#pragma omp ordered simd
+    f[i] = 1.0;
+  }
+}
+
+// CHECK: define internal void [[CAP_FUNC]](i32* dereferenceable({{[0-9]+}}) %{{.+}}) #
+// CHECK: store float 1.000000e+00, float* %{{.+}}, align
+// CHECK-NEXT: ret void
 
 #endif // HEADER
 

@@ -1,7 +1,5 @@
-// RUN: %clang_cc1 -w -gline-tables-only -std=c++11 -fexceptions -fcxx-exceptions -S -emit-llvm %s -o - | FileCheck %s
-// RUN: %clang_cc1 -w -gline-tables-only -std=c++11 -fexceptions -fcxx-exceptions -S -emit-llvm %s -o - -triple i686-linux-gnu | FileCheck %s
-
-// XFAIL: win32
+// RUN: %clang_cc1 -w -debug-info-kind=line-tables-only -std=c++11 -fexceptions -fcxx-exceptions -S -emit-llvm %s -o - -triple %itanium_abi_triple | FileCheck %s
+// RUN: %clang_cc1 -w -debug-info-kind=line-tables-only -std=c++11 -fexceptions -fcxx-exceptions -S -emit-llvm %s -o - -triple i686-linux-gnu | FileCheck %s
 
 int &src();
 int *sink();
@@ -158,7 +156,7 @@ __complex double f11() {
 void f12() {
   int f12_1();
   void f12_2(int = f12_1());
-// CHECK: call {{(signext )?}}i32 {{.*}} !dbg [[DBG_F12:!.*]]
+// CHECK: call {{.*}}{{(signext )?}}i32 {{.*}} !dbg [[DBG_F12:!.*]]
 #line 1400
   f12_2();
 }

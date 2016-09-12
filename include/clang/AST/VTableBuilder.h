@@ -20,7 +20,6 @@
 #include "clang/AST/RecordLayout.h"
 #include "clang/Basic/ABI.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/SetVector.h"
 #include <memory>
 #include <utility>
 
@@ -51,7 +50,7 @@ public:
     CK_UnusedFunctionPointer
   };
 
-  VTableComponent() { }
+  VTableComponent() = default;
 
   static VTableComponent MakeVCallOffset(CharUnits Offset) {
     return VTableComponent(CK_VCallOffset, Offset);
@@ -122,31 +121,56 @@ public:
   }
 
   const CXXRecordDecl *getRTTIDecl() const {
-    assert(getKind() == CK_RTTI && "Invalid component kind!");
-
+    assert(isRTTIKind() && "Invalid component kind!");
     return reinterpret_cast<CXXRecordDecl *>(getPointer());
   }
 
   const CXXMethodDecl *getFunctionDecl() const {
-    assert(getKind() == CK_FunctionPointer);
-
+    assert(isFunctionPointerKind() && "Invalid component kind!");
+    if (isDestructorKind())
+      return getDestructorDecl();
     return reinterpret_cast<CXXMethodDecl *>(getPointer());
   }
 
   const CXXDestructorDecl *getDestructorDecl() const {
-    assert((getKind() == CK_CompleteDtorPointer ||
-            getKind() == CK_DeletingDtorPointer) && "Invalid component kind!");
-
+    assert(isDestructorKind() && "Invalid component kind!");
     return reinterpret_cast<CXXDestructorDecl *>(getPointer());
   }
 
   const CXXMethodDecl *getUnusedFunctionDecl() const {
-    assert(getKind() == CK_UnusedFunctionPointer);
-
+    assert(getKind() == CK_UnusedFunctionPointer && "Invalid component kind!");
     return reinterpret_cast<CXXMethodDecl *>(getPointer());
   }
 
+  bool isDestructorKind() const { return isDestructorKind(getKind()); }
+
+  bool isUsedFunctionPointerKind() const {
+    return isUsedFunctionPointerKind(getKind());
+  }
+
+  bool isFunctionPointerKind() const {
+    return isFunctionPointerKind(getKind());
+  }
+
+  bool isRTTIKind() const { return isRTTIKind(getKind()); }
+
 private:
+  static bool isFunctionPointerKind(Kind ComponentKind) {
+    return isUsedFunctionPointerKind(ComponentKind) ||
+           ComponentKind == CK_UnusedFunctionPointer;
+  }
+  static bool isUsedFunctionPointerKind(Kind ComponentKind) {
+    return ComponentKind == CK_FunctionPointer ||
+           isDestructorKind(ComponentKind);
+  }
+  static bool isDestructorKind(Kind ComponentKind) {
+    return ComponentKind == CK_CompleteDtorPointer ||
+           ComponentKind == CK_DeletingDtorPointer;
+  }
+  static bool isRTTIKind(Kind ComponentKind) {
+    return ComponentKind == CK_RTTI;
+  }
+
   VTableComponent(Kind ComponentKind, CharUnits Offset) {
     assert((ComponentKind == CK_VCallOffset ||
             ComponentKind == CK_VBaseOffset ||
@@ -158,12 +182,8 @@ private:
   }
 
   VTableComponent(Kind ComponentKind, uintptr_t Ptr) {
-    assert((ComponentKind == CK_RTTI ||
-            ComponentKind == CK_FunctionPointer ||
-            ComponentKind == CK_CompleteDtorPointer ||
-            ComponentKind == CK_DeletingDtorPointer ||
-            ComponentKind == CK_UnusedFunctionPointer) &&
-            "Invalid component kind!");
+    assert((isRTTIKind(ComponentKind) || isFunctionPointerKind(ComponentKind)) &&
+           "Invalid component kind!");
 
     assert((Ptr & 7) == 0 && "Pointer not sufficiently aligned!");
 
@@ -178,11 +198,7 @@ private:
   }
 
   uintptr_t getPointer() const {
-    assert((getKind() == CK_RTTI ||
-            getKind() == CK_FunctionPointer ||
-            getKind() == CK_CompleteDtorPointer ||
-            getKind() == CK_DeletingDtorPointer ||
-            getKind() == CK_UnusedFunctionPointer) &&
+    assert((getKind() == CK_RTTI || isFunctionPointerKind()) &&
            "Invalid component kind!");
 
     return static_cast<uintptr_t>(Value & ~7ULL);
@@ -202,11 +218,8 @@ private:
 class VTableLayout {
 public:
   typedef std::pair<uint64_t, ThunkInfo> VTableThunkTy;
-
-  typedef const VTableComponent *vtable_component_iterator;
-  typedef const VTableThunkTy *vtable_thunk_iterator;
-
   typedef llvm::DenseMap<BaseSubobject, uint64_t> AddressPointsMapTy;
+
 private:
   uint64_t NumVTableComponents;
   std::unique_ptr<VTableComponent[]> VTableComponents;
@@ -229,26 +242,12 @@ public:
                bool IsMicrosoftABI);
   ~VTableLayout();
 
-  uint64_t getNumVTableComponents() const {
-    return NumVTableComponents;
+  ArrayRef<VTableComponent> vtable_components() const {
+    return {VTableComponents.get(), size_t(NumVTableComponents)};
   }
 
-  vtable_component_iterator vtable_component_begin() const {
-    return VTableComponents.get();
-  }
-
-  vtable_component_iterator vtable_component_end() const {
-    return VTableComponents.get() + NumVTableComponents;
-  }
-
-  uint64_t getNumVTableThunks() const { return NumVTableThunks; }
-
-  vtable_thunk_iterator vtable_thunk_begin() const {
-    return VTableThunks.get();
-  }
-
-  vtable_thunk_iterator vtable_thunk_end() const {
-    return VTableThunks.get() + NumVTableThunks;
+  ArrayRef<VTableThunkTy> vtable_thunks() const {
+    return {VTableThunks.get(), size_t(NumVTableThunks)};
   }
 
   uint64_t getAddressPoint(BaseSubobject Base) const {
@@ -374,24 +373,20 @@ struct VPtrInfo {
   typedef SmallVector<const CXXRecordDecl *, 1> BasePath;
 
   VPtrInfo(const CXXRecordDecl *RD)
-      : ReusingBase(RD), BaseWithVPtr(RD), NextBaseToMangle(RD) {}
+      : ObjectWithVPtr(RD), IntroducingObject(RD), NextBaseToMangle(RD) {}
 
-  // Copy constructor.
-  // FIXME: Uncomment when we've moved to C++11.
-  // VPtrInfo(const VPtrInfo &) = default;
+  /// This is the most derived class that has this vptr at offset zero. When
+  /// single inheritance is used, this is always the most derived class. If
+  /// multiple inheritance is used, it may be any direct or indirect base.
+  const CXXRecordDecl *ObjectWithVPtr;
 
-  /// The vtable will hold all of the virtual bases or virtual methods of
-  /// ReusingBase.  This may or may not be the same class as VPtrSubobject.Base.
-  /// A derived class will reuse the vptr of the first non-virtual base
-  /// subobject that has one.
-  const CXXRecordDecl *ReusingBase;
+  /// This is the class that introduced the vptr by declaring new virtual
+  /// methods or virtual bases.
+  const CXXRecordDecl *IntroducingObject;
 
-  /// BaseWithVPtr is at this offset from its containing complete object or
+  /// IntroducingObject is at this offset from its containing complete object or
   /// virtual base.
   CharUnits NonVirtualOffset;
-
-  /// The vptr is stored inside this subobject.
-  const CXXRecordDecl *BaseWithVPtr;
 
   /// The bases from the inheritance path that got used to mangle the vbtable
   /// name.  This is not really a full path like a CXXBasePath.  It holds the
@@ -411,7 +406,7 @@ struct VPtrInfo {
   /// This holds the base classes path from the complete type to the first base
   /// with the given vfptr offset, in the base-to-derived order.  Only used for
   /// vftables.
-  BasePath PathToBaseWithVPtr;
+  BasePath PathToIntroducingObject;
 
   /// Static offset from the top of the most derived class to this vfptr,
   /// including any virtual base offset.  Only used for vftables.

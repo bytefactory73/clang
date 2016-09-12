@@ -14,15 +14,11 @@
 #ifndef LLVM_CLANG_LEX_PTHMANAGER_H
 #define LLVM_CLANG_LEX_PTHMANAGER_H
 
-#include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/IdentifierTable.h"
-#include "clang/Basic/LangOptions.h"
-#include "clang/Lex/PTHLexer.h"
-#include "llvm/ADT/DenseMap.h"
+#include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/OnDiskHashTable.h"
-#include <string>
 
 namespace llvm {
   class MemoryBuffer;
@@ -31,6 +27,7 @@ namespace llvm {
 namespace clang {
 
 class FileEntry;
+class Preprocessor;
 class PTHLexer;
 class DiagnosticsEngine;
 class FileSystemStatCache;
@@ -129,7 +126,7 @@ public:
 
   /// Create - This method creates PTHManager objects.  The 'file' argument
   ///  is the name of the PTH file.  This method returns NULL upon failure.
-  static PTHManager *Create(const std::string& file, DiagnosticsEngine &Diags);
+  static PTHManager *Create(StringRef file, DiagnosticsEngine &Diags);
 
   void setPreprocessor(Preprocessor *pp) { PP = pp; }
 

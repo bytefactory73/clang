@@ -13,12 +13,10 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSet.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/Option/OptTable.h"
 #include "llvm/Option/Option.h"
-#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Regex.h"
 #include "llvm/Support/YAMLParser.h"
@@ -260,16 +258,15 @@ bool MultilibSet::select(const Multilib::flags_list &Flags, Multilib &M) const {
     return false;
   }, Multilibs);
 
-  if (Filtered.size() == 0) {
+  if (Filtered.size() == 0)
     return false;
-  } else if (Filtered.size() == 1) {
+  if (Filtered.size() == 1) {
     M = Filtered[0];
     return true;
   }
 
   // TODO: pick the "best" multlib when more than one is suitable
   assert(false);
-
   return false;
 }
 

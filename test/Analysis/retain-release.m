@@ -1247,6 +1247,26 @@ CVReturn rdar_7283567_2(CFAllocatorRef allocator, size_t width, size_t height,
               pixelBufferAttributes, pixelBufferOut) ;
 }
 
+#pragma clang arc_cf_code_audited begin
+typedef struct SomeOpaqueStruct *CMSampleBufferRef;
+CVImageBufferRef _Nonnull CMSampleBufferGetImageBuffer(CMSampleBufferRef _Nonnull sbuf);
+#pragma clang arc_cf_code_audited end
+
+CVBufferRef _Nullable CVBufferRetain(CVBufferRef _Nullable buffer);
+void CVBufferRelease(CF_CONSUMED CVBufferRef _Nullable buffer);
+
+void testCVPrefixRetain(CMSampleBufferRef sbuf) {
+  // Make sure RetainCountChecker treats CVFooRetain() as a CF-style retain.
+  CVPixelBufferRef pixelBuf = CMSampleBufferGetImageBuffer(sbuf);
+  CVBufferRetain(pixelBuf);
+  CVBufferRelease(pixelBuf); // no-warning
+
+
+  // Make sure result of CVFooRetain() is the same as its argument.
+  CVPixelBufferRef pixelBufAlias = CVBufferRetain(pixelBuf);
+  CVBufferRelease(pixelBufAlias); // no-warning
+}
+
 //===----------------------------------------------------------------------===//
 // <rdar://problem/7358899> False leak associated with 
 //  CGBitmapContextCreateWithData
@@ -2151,6 +2171,40 @@ void foo() {
 __attribute__((ns_returns_retained))
 id returnNSNull() {
   return [NSNull null]; // no-warning
+}
+
+//===----------------------------------------------------------------------===//
+// cf_returns_[not_]retained on parameters
+//===----------------------------------------------------------------------===//
+
+void testCFReturnsNotRetained() {
+  extern void getViaParam(CFTypeRef * CF_RETURNS_NOT_RETAINED outObj);
+  CFTypeRef obj;
+  getViaParam(&obj);
+  CFRelease(obj); // // expected-warning {{Incorrect decrement of the reference count of an object that is not owned at this point by the caller}}
+}
+
+void testCFReturnsNotRetainedAnnotated() {
+  extern void getViaParam2(CFTypeRef * _Nonnull CF_RETURNS_NOT_RETAINED outObj);
+  CFTypeRef obj;
+  getViaParam2(&obj);
+  CFRelease(obj); // // expected-warning {{Incorrect decrement of the reference count of an object that is not owned at this point by the caller}}
+}
+
+void testCFReturnsRetained() {
+  extern int copyViaParam(CFTypeRef * CF_RETURNS_RETAINED outObj);
+  CFTypeRef obj;
+  copyViaParam(&obj);
+  CFRelease(obj);
+  CFRelease(obj); // // FIXME-warning {{Incorrect decrement of the reference count of an object that is not owned at this point by the caller}}
+}
+
+void testCFReturnsRetainedError() {
+  extern int copyViaParam(CFTypeRef * CF_RETURNS_RETAINED outObj);
+  CFTypeRef obj;
+  if (copyViaParam(&obj) == -42)
+    return; // no-warning
+  CFRelease(obj);
 }
 
 // CHECK:  <key>diagnostics</key>

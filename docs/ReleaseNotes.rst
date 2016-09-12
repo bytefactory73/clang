@@ -1,6 +1,6 @@
-=====================================
-Clang 3.7 (In-Progress) Release Notes
-=====================================
+=======================================
+Clang 4.0.0 (In-Progress) Release Notes
+=======================================
 
 .. contents::
    :local:
@@ -10,15 +10,15 @@ Written by the `LLVM Team <http://llvm.org/>`_
 
 .. warning::
 
-   These are in-progress notes for the upcoming Clang 3.7 release. You may
-   prefer the `Clang 3.5 Release Notes
-   <http://llvm.org/releases/3.5.0/tools/clang/docs/ReleaseNotes.html>`_.
+   These are in-progress notes for the upcoming Clang 4.0.0 release. You may
+   prefer the `Clang 3.8 Release Notes
+   <http://llvm.org/releases/3.8.0/tools/clang/docs/ReleaseNotes.html>`_.
 
 Introduction
 ============
 
 This document contains the release notes for the Clang C/C++/Objective-C
-frontend, part of the LLVM Compiler Infrastructure, release 3.7. Here we
+frontend, part of the LLVM Compiler Infrastructure, release 4.0.0. Here we
 describe the status of Clang in some detail, including major
 improvements from the previous release and new feature work. For the
 general LLVM release notes, see `the LLVM
@@ -36,8 +36,8 @@ main Clang web page, this document applies to the *next* release, not
 the current one. To see the release notes for a specific release, please
 see the `releases page <http://llvm.org/releases/>`_.
 
-What's New in Clang 3.7?
-========================
+What's New in Clang 4.0.0?
+==========================
 
 Some of the major new features and improvements to Clang are listed
 here. Generic improvements to Clang as a whole or to its underlying
@@ -47,25 +47,15 @@ sections with improvements to Clang's support for those languages.
 Major New Features
 ------------------
 
-- Feature ...
-
+-  ...
 
 Improvements to Clang's diagnostics
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Clang's diagnostics are constantly being improved to catch more issues,
-explain them more clearly, and provide more accurate source information
-about them. The improvements since the 3.5 release include:
 
 -  ...
 
 New Compiler Flags
 ------------------
-
-The sized deallocation feature of C++14 is now controlled by the
-``-fsized-deallocation`` flag. This feature relies on library support that
-isn't yet widely deployed, so the user must supply an extra flag to get the
-extra functionality.
 
 The option ....
 
@@ -75,6 +65,12 @@ New Pragmas in Clang
 
 Clang now supports the ...
 
+
+Attribute Changes in Clang
+--------------------------
+
+-  ...
+
 Windows Support
 ---------------
 
@@ -83,6 +79,8 @@ Clang's support for building native Windows programs ...
 
 C Language Changes in Clang
 ---------------------------
+
+- ...
 
 ...
 
@@ -94,9 +92,9 @@ C11 Feature Support
 C++ Language Changes in Clang
 -----------------------------
 
-- ...
+...
 
-C++11 Feature Support
+C++1z Feature Support
 ^^^^^^^^^^^^^^^^^^^^^
 
 ...
@@ -111,25 +109,33 @@ OpenCL C Language Changes in Clang
 
 ...
 
+OpenMP Support in Clang
+----------------------------------
+
+...
+
 Internal API Changes
 --------------------
 
-These are major API changes that have happened since the 3.6 release of
+These are major API changes that have happened since the 3.8 release of
 Clang. If upgrading an external codebase that uses Clang as a library,
 this section should help get you past the largest hurdles of upgrading.
 
--  Some of the `PPCallbacks` interface now deals in `MacroDefinition`
-   objects instead of `MacroDirective` objects. This allows preserving
-   full information on macros imported from modules.
+-  ...
 
--  `clang-c/Index.h` no longer `#include`\s `clang-c/Documentation.h`.
-   You now need to explicitly `#include "clang-c/Documentation.h"` if
-   you use the libclang documentation API.
+AST Matchers
+------------
+
+...
 
 libclang
 --------
 
 ...
+
+With the option --show-description, scan-build's list of defects will also
+show the description of the defects.
+
 
 Static Analyzer
 ---------------
@@ -168,4 +174,4 @@ tree.
 
 If you have any questions or comments about Clang, please feel free to
 contact us via the `mailing
-list <http://lists.cs.uiuc.edu/mailman/listinfo/cfe-dev>`_.
+list <http://lists.llvm.org/mailman/listinfo/cfe-dev>`_.

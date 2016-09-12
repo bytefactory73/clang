@@ -17,14 +17,12 @@
 
 #include "clang/Basic/DiagnosticIDs.h"
 #include "clang/Basic/SourceLocation.h"
-#include "clang/Lex/DirectoryLookup.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/Lex/ModuleLoader.h"
 #include "clang/Lex/Pragma.h"
 #include "llvm/ADT/StringRef.h"
-#include <string>
 
 namespace clang {
-  class SourceLocation;
   class Token;
   class IdentifierInfo;
   class MacroDefinition;
@@ -155,7 +153,7 @@ public:
   /// \param Loc The location of the directive.
   /// \param str The text of the directive.
   ///
-  virtual void Ident(SourceLocation Loc, const std::string &str) {
+  virtual void Ident(SourceLocation Loc, StringRef str) {
   }
 
   /// \brief Callback invoked when start reading any pragma directive.
@@ -165,14 +163,13 @@ public:
 
   /// \brief Callback invoked when a \#pragma comment directive is read.
   virtual void PragmaComment(SourceLocation Loc, const IdentifierInfo *Kind,
-                             const std::string &Str) {
+                             StringRef Str) {
   }
 
   /// \brief Callback invoked when a \#pragma detect_mismatch directive is
   /// read.
-  virtual void PragmaDetectMismatch(SourceLocation Loc,
-                                    const std::string &Name,
-                                    const std::string &Value) {
+  virtual void PragmaDetectMismatch(SourceLocation Loc, StringRef Name,
+                                    StringRef Value) {
   }
 
   /// \brief Callback invoked when a \#pragma clang __debug directive is read.
@@ -202,19 +199,19 @@ public:
                              PragmaMessageKind Kind, StringRef Str) {
   }
 
-  /// \brief Callback invoked when a \#pragma gcc dianostic push directive
+  /// \brief Callback invoked when a \#pragma gcc diagnostic push directive
   /// is read.
   virtual void PragmaDiagnosticPush(SourceLocation Loc,
                                     StringRef Namespace) {
   }
 
-  /// \brief Callback invoked when a \#pragma gcc dianostic pop directive
+  /// \brief Callback invoked when a \#pragma gcc diagnostic pop directive
   /// is read.
   virtual void PragmaDiagnosticPop(SourceLocation Loc,
                                    StringRef Namespace) {
   }
 
-  /// \brief Callback invoked when a \#pragma gcc dianostic directive is read.
+  /// \brief Callback invoked when a \#pragma gcc diagnostic directive is read.
   virtual void PragmaDiagnostic(SourceLocation Loc, StringRef Namespace,
                                 diag::Severity mapping, StringRef Str) {}
 
@@ -375,19 +372,19 @@ public:
     Second->EndOfMainFile();
   }
 
-  void Ident(SourceLocation Loc, const std::string &str) override {
+  void Ident(SourceLocation Loc, StringRef str) override {
     First->Ident(Loc, str);
     Second->Ident(Loc, str);
   }
 
   void PragmaComment(SourceLocation Loc, const IdentifierInfo *Kind,
-                     const std::string &Str) override {
+                     StringRef Str) override {
     First->PragmaComment(Loc, Kind, Str);
     Second->PragmaComment(Loc, Kind, Str);
   }
 
-  void PragmaDetectMismatch(SourceLocation Loc, const std::string &Name,
-                            const std::string &Value) override {
+  void PragmaDetectMismatch(SourceLocation Loc, StringRef Name,
+                            StringRef Value) override {
     First->PragmaDetectMismatch(Loc, Name, Value);
     Second->PragmaDetectMismatch(Loc, Name, Value);
   }

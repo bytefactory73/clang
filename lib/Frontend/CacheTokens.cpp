@@ -12,13 +12,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Frontend/Utils.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/FileSystemStatCache.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Frontend/Utils.h"
 #include "clang/Lex/Lexer.h"
+#include "clang/Lex/PTHManager.h"
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringMap.h"
@@ -27,7 +28,6 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/OnDiskHashTable.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Support/raw_ostream.h"
 
 // FIXME: put this somewhere else?
 #ifndef S_ISDIR
@@ -105,7 +105,7 @@ public:
   }
 
   unsigned getRepresentationLength() const {
-    return Kind == IsNoExist ? 0 : 4 + 4 + 2 + 8 + 8;
+    return Kind == IsNoExist ? 0 : 4 * 8;
   }
 };
 
@@ -240,7 +240,7 @@ public:
       : Out(out), PP(pp), idcount(0), CurStrOffset(0) {}
 
   PTHMap &getPM() { return PM; }
-  void GeneratePTH(const std::string &MainFile);
+  void GeneratePTH(StringRef MainFile);
 };
 } // end anonymous namespace
 
@@ -478,7 +478,7 @@ static void pwrite32le(raw_pwrite_stream &OS, uint32_t Val, uint64_t &Off) {
   Off += 4;
 }
 
-void PTHWriter::GeneratePTH(const std::string &MainFile) {
+void PTHWriter::GeneratePTH(StringRef MainFile) {
   // Generate the prologue.
   Out << "cfe-pth" << '\0';
   Emit32(PTHManager::Version);

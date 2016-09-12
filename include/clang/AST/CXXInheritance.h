@@ -16,7 +16,6 @@
 
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclCXX.h"
-#include "clang/AST/DeclarationName.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/TypeOrdering.h"
 #include "llvm/ADT/MapVector.h"
@@ -24,7 +23,6 @@
 #include "llvm/ADT/SmallVector.h"
 #include <cassert>
 #include <list>
-#include <map>
 
 namespace clang {
   
@@ -155,17 +153,16 @@ class CXXBasePaths {
   /// \brief Array of the declarations that have been found. This
   /// array is constructed only if needed, e.g., to iterate over the
   /// results within LookupResult.
-  NamedDecl **DeclsFound;
+  std::unique_ptr<NamedDecl *[]> DeclsFound;
   unsigned NumDeclsFound;
   
   friend class CXXRecordDecl;
   
   void ComputeDeclsFound();
 
-  bool lookupInBases(ASTContext &Context, 
-                     const CXXRecordDecl *Record,
-                     CXXRecordDecl::BaseMatchesCallback *BaseMatches, 
-                     void *UserData);
+  bool lookupInBases(ASTContext &Context, const CXXRecordDecl *Record,
+                     CXXRecordDecl::BaseMatchesCallback BaseMatches);
+
 public:
   typedef std::list<CXXBasePath>::iterator paths_iterator;
   typedef std::list<CXXBasePath>::const_iterator const_paths_iterator;
@@ -173,15 +170,12 @@ public:
   
   /// BasePaths - Construct a new BasePaths structure to record the
   /// paths for a derived-to-base search.
-  explicit CXXBasePaths(bool FindAmbiguities = true,
-                        bool RecordPaths = true,
+  explicit CXXBasePaths(bool FindAmbiguities = true, bool RecordPaths = true,
                         bool DetectVirtual = true)
-    : FindAmbiguities(FindAmbiguities), RecordPaths(RecordPaths),
-      DetectVirtual(DetectVirtual), DetectedVirtual(nullptr),
-      DeclsFound(nullptr), NumDeclsFound(0) { }
-  
-  ~CXXBasePaths() { delete [] DeclsFound; }
-  
+      : Origin(), FindAmbiguities(FindAmbiguities), RecordPaths(RecordPaths),
+        DetectVirtual(DetectVirtual), DetectedVirtual(nullptr),
+        NumDeclsFound(0) {}
+
   paths_iterator begin() { return Paths.begin(); }
   paths_iterator end()   { return Paths.end(); }
   const_paths_iterator begin() const { return Paths.begin(); }

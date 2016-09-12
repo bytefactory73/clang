@@ -19,8 +19,6 @@
 #include "ContinuationIndenter.h"
 #include "clang/Format/Format.h"
 #include <map>
-#include <queue>
-#include <string>
 
 namespace clang {
 namespace format {
@@ -52,7 +50,8 @@ private:
 
   /// \brief Returns the column limit for a line, taking into account whether we
   /// need an escaped newline due to a continued preprocessor directive.
-  unsigned getColumnLimit(bool InPPDirective, const AnnotatedLine *NextLine) const;
+  unsigned getColumnLimit(bool InPPDirective,
+                          const AnnotatedLine *NextLine) const;
 
   // Cache to store the penalty of formatting a vector of AnnotatedLines
   // starting from a specific additional offset. Improves performance if there

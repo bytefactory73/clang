@@ -21,7 +21,6 @@
 #include "clang/ASTMatchers/ASTMatchersInternal.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/Optional.h"
-#include "llvm/ADT/Twine.h"
 #include <memory>
 #include <vector>
 
@@ -242,7 +241,7 @@ struct VariantMatcher::TypedMatcherOps final : VariantMatcher::MatcherOps {
 ///
 /// Supported types:
 ///  - \c unsigned
-///  - \c std::string
+///  - \c llvm::StringRef
 ///  - \c VariantMatcher (\c DynTypedMatcher / \c Matcher<T>)
 class VariantValue {
 public:
@@ -254,7 +253,7 @@ public:
 
   /// \brief Specific constructors for each supported type.
   VariantValue(unsigned Unsigned);
-  VariantValue(const std::string &String);
+  VariantValue(StringRef String);
   VariantValue(const VariantMatcher &Matchers);
 
   /// \brief Returns true iff this is not an empty value.
@@ -269,7 +268,7 @@ public:
   /// \brief String value functions.
   bool isString() const;
   const std::string &getString() const;
-  void setString(const std::string &String);
+  void setString(StringRef String);
 
   /// \brief Matcher value functions.
   bool isMatcher() const;

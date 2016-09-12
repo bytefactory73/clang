@@ -12,7 +12,6 @@
 
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSet.h"
 #include <cassert>
@@ -149,18 +148,14 @@ public:
                           RetainRemappedFileBuffers(false),
                           ObjCXXARCStandardLibrary(ARCXX_nolib) { }
 
-  void addMacroDef(StringRef Name) {
-    Macros.push_back(std::make_pair(Name, false));
-  }
-  void addMacroUndef(StringRef Name) {
-    Macros.push_back(std::make_pair(Name, true));
-  }
+  void addMacroDef(StringRef Name) { Macros.emplace_back(Name, false); }
+  void addMacroUndef(StringRef Name) { Macros.emplace_back(Name, true); }
   void addRemappedFile(StringRef From, StringRef To) {
-    RemappedFiles.push_back(std::make_pair(From, To));
+    RemappedFiles.emplace_back(From, To);
   }
 
   void addRemappedFile(StringRef From, llvm::MemoryBuffer *To) {
-    RemappedFileBuffers.push_back(std::make_pair(From, To));
+    RemappedFileBuffers.emplace_back(From, To);
   }
 
   void clearRemappedFiles() {
